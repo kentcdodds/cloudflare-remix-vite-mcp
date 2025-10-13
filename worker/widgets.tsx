@@ -1,9 +1,9 @@
 import { renderToString } from '@remix-run/dom/server'
 import { type ZodRawShape, type z } from 'zod'
+import { BUILD_TIMESTAMP } from './build-timestamp.ts'
 import { type MathMCP } from './index.ts'
 import { Calculator } from './widgets/calculator.tsx'
 
-declare const BUILD_TIMESTAMP: string
 const version = BUILD_TIMESTAMP
 
 type WidgetOutput<Input extends ZodRawShape, Output extends ZodRawShape> = {
@@ -36,6 +36,9 @@ function createWidget<Input extends ZodRawShape, Output extends ZodRawShape>(
 }
 
 export async function registerWidgets(agent: MathMCP) {
+	const baseUrl = agent.requireDomain()
+	const getResourceUrl = (resourcePath: string) =>
+		new URL(resourcePath, baseUrl).toString()
 	const widgets = [
 		createWidget({
 			name: 'calculator',
@@ -45,7 +48,24 @@ export async function registerWidgets(agent: MathMCP) {
 			resultMessage: 'The calculator has been rendered',
 			widgetAccessible: true,
 			resultCanProduceWidget: true,
-			getHtml: () => renderToString(<Calculator />),
+			getHtml: () =>
+				renderToString(
+					<html>
+						<head>
+							<link
+								rel="modulepreload"
+								href={getResourceUrl(Calculator.$moduleUrl)}
+							/>
+							<script
+								src={getResourceUrl('/widgets/entry.js')}
+								type="module"
+							></script>
+						</head>
+						<body>
+							<Calculator />
+						</body>
+					</html>,
+				),
 			// TODO: have input schema for initial state
 			inputSchema: {},
 			outputSchema: {},
@@ -54,7 +74,6 @@ export async function registerWidgets(agent: MathMCP) {
 	]
 
 	for (const widget of widgets) {
-		const baseUrl = agent.requireDomain()
 		const name = `${widget.name}-${version}`
 		const uri = `ui://widget/${name}.html`
 

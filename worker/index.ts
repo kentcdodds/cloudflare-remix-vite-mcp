@@ -2,6 +2,7 @@ import { invariant } from '@epic-web/invariant'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { McpAgent } from 'agents/mcp'
 import { registerTools } from './tools.ts'
+import { withCors } from './utils.ts'
 import { registerWidgets } from './widgets.tsx'
 
 export type State = {}
@@ -34,22 +35,33 @@ export class MathMCP extends McpAgent<Env, State, Props> {
 }
 
 export default {
-	fetch: async (request: Request, env: Env, ctx: ExecutionContext<Props>) => {
-		const url = new URL(request.url)
+	fetch: withCors({
+		getCorsHeaders: () => ({
+			'Access-Control-Allow-Origin': '*',
+			'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+			'Access-Control-Allow-Headers': 'content-type',
+		}),
+		handler: async (
+			request: Request,
+			env: Env,
+			ctx: ExecutionContext<Props>,
+		) => {
+			const url = new URL(request.url)
 
-		if (url.pathname === '/mcp') {
-			ctx.props.baseUrl = url.origin
+			if (url.pathname === '/mcp') {
+				ctx.props.baseUrl = url.origin
 
-			return MathMCP.serve('/mcp', {
-				binding: 'MATH_MCP_OBJECT',
-			}).fetch(request, env, ctx)
-		}
+				return MathMCP.serve('/mcp', {
+					binding: 'MATH_MCP_OBJECT',
+				}).fetch(request, env, ctx)
+			}
 
-		// Try to serve static assets
-		if (env.ASSETS) {
-			return env.ASSETS.fetch(request)
-		}
+			// Try to serve static assets
+			if (env.ASSETS) {
+				return env.ASSETS.fetch(request)
+			}
 
-		return new Response(null, { status: 404 })
-	},
+			return new Response(null, { status: 404 })
+		},
+	}),
 }

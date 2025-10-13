@@ -14,10 +14,11 @@ const entries = Object.fromEntries(
 // https://vite.dev/config/
 export default defineConfig({
 	build: {
+		outDir: 'dist/public',
 		rollupOptions: {
 			input: entries,
 			output: {
-				entryFileNames: 'public/widgets/[name].js',
+				entryFileNames: 'widgets/[name].js',
 				format: 'es',
 			},
 			preserveEntrySignatures: 'exports-only', // Preserve exports even if they appear unused
