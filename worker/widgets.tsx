@@ -44,6 +44,7 @@ export async function registerWidgets(agent: MathMCP) {
 		createWidget({
 			name: 'calculator',
 			title: 'Calculator',
+			description: 'A simple calculator',
 			invokingMessage: `Getting your calculator ready`,
 			invokedMessage: `Here's your calculator`,
 			resultMessage: 'The calculator has been rendered',
