@@ -4,6 +4,14 @@
 	"compatibility_date": "2025-10-08",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "./worker/index.ts",
+	"define": {
+		"BUILD_TIMESTAMP": "process.env.BUILD_TIMESTAMP",
+	},
+	"assets": {
+		"directory": "./dist/public",
+		"binding": "ASSETS",
+	},
+	"tsconfig": "./tsconfig.worker.json",
 	"migrations": [
 		{
 			"new_sqlite_classes": ["MathMCP"],
