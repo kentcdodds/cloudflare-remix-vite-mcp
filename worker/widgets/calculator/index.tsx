@@ -48,7 +48,6 @@ export function Calculator(this: Remix.Handle) {
 				display: 'flex',
 				justifyContent: 'center',
 				alignItems: 'center',
-				minHeight: '100vh',
 				padding: '20px',
 				background: 'light-dark(#f0f0f0, #1a1a1a)',
 				fontFamily: "'Courier New', monospace",
