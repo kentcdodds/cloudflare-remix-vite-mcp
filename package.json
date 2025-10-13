@@ -1,0 +1,50 @@
+{
+  "name": "cloudflare-remix-vite-mcp",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "preview": "vite preview",
+    "generate-types": "wrangler types ./types/worker-configuration.d.ts",
+    "pretypecheck": "npm run generate-types",
+    "typecheck": "tsc --noEmit",
+    "inspect": "mcp-inspector",
+    "validate": "concurrently --kill-others-on-fail -n format,lint,build,typecheck -c green,yellow,blue,magenta \"npm run format:check\" \"npm run lint:fix\" \"npm run build\" \"npm run typecheck\""
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.13.12",
+    "@cloudflare/workers-types": "^4.20251011.0",
+    "@epic-web/config": "^1.21.3",
+    "@eslint/js": "^9.37.0",
+    "@modelcontextprotocol/inspector": "^0.17.0",
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.37.0",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "eslint-plugin-react-refresh": "^0.4.23",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.1",
+    "vite": "^7.1.9",
+    "wrangler": "^4.42.2"
+  },
+  "prettier": "@epic-web/config/prettier",
+  "dependencies": {
+    "@epic-web/invariant": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "@remix-run/dom": "^0.0.0-experimental-remix-jam.6",
+    "@remix-run/events": "^0.0.0-experimental-remix-jam.5",
+    "agents": "^0.2.13",
+    "zod": "^3.25.76"
+  }
+}

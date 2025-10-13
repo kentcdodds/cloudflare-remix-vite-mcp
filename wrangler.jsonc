@@ -1,0 +1,25 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "cloudflare-remix-vite-mcp",
+	"compatibility_date": "2025-10-08",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "./worker/index.ts",
+	"migrations": [
+		{
+			"new_sqlite_classes": ["MathMCP"],
+			"tag": "v1",
+		},
+	],
+
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "MathMCP",
+				"name": "MATH_MCP_OBJECT",
+			},
+		],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}
