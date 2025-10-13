@@ -3,7 +3,7 @@
 	"name": "cloudflare-remix-vite-mcp",
 	"compatibility_date": "2025-10-08",
 	"compatibility_flags": ["nodejs_compat"],
-	"main": "./worker/index.ts",
+	"main": "./worker/index.tsx",
 	"assets": {
 		"directory": "./dist/public",
 		"binding": "ASSETS",
