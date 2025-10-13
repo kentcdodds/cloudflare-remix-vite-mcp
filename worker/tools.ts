@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { type MathMCP } from './index.ts'
+import { type MathMCP } from './index.tsx'
 
 type OperationFn = (left: number, right: number) => number
 

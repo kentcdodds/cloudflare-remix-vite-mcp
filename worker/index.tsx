@@ -1,5 +1,6 @@
 import { invariant } from '@epic-web/invariant'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { renderToString } from '@remix-run/dom/server'
 import { McpAgent } from 'agents/mcp'
 import { registerTools } from './tools.ts'
 import { withCors } from './utils.ts'
@@ -58,7 +59,37 @@ export default {
 
 			// Try to serve static assets
 			if (env.ASSETS) {
-				return env.ASSETS.fetch(request)
+				const response = await env.ASSETS.fetch(request)
+				if (response.ok) {
+					return response
+				}
+			}
+
+			if (url.pathname.startsWith('/__dev/widgets')) {
+				const getResourceUrl = (resourcePath: string) =>
+					new URL(resourcePath, url.origin).toString()
+				return new Response(
+					await renderToString(
+						<html>
+							<head>
+								<meta charSet="utf-8" />
+								<meta name="color-scheme" content="light dark" />
+								<script
+									src={getResourceUrl('/widgets/entry.js')}
+									type="module"
+								/>
+							</head>
+							<body css={{ margin: 0 }}>
+								<div id="💿" />
+							</body>
+						</html>,
+					),
+					{
+						headers: {
+							'Content-Type': 'text/html',
+						},
+					},
+				)
 			}
 
 			return new Response(null, { status: 404 })

@@ -1,8 +1,8 @@
 import { renderToString } from '@remix-run/dom/server'
 import { type ZodRawShape, type z } from 'zod'
 import { BUILD_TIMESTAMP } from './build-timestamp.ts'
-import { type MathMCP } from './index.ts'
-import { Calculator } from './widgets/calculator.tsx'
+import { type MathMCP } from './index.tsx'
+import { Calculator } from './widgets/calculator/index.tsx'
 
 const version = BUILD_TIMESTAMP
 
@@ -52,17 +52,15 @@ export async function registerWidgets(agent: MathMCP) {
 				renderToString(
 					<html>
 						<head>
-							<link
-								rel="modulepreload"
-								href={getResourceUrl(Calculator.$moduleUrl)}
-							/>
+							<meta charSet="utf-8" />
+							<meta name="color-scheme" content="light dark" />
 							<script
 								src={getResourceUrl('/widgets/entry.js')}
 								type="module"
 							></script>
 						</head>
-						<body>
-							<Calculator />
+						<body css={{ margin: 0 }}>
+							<div id="💿" />
 						</body>
 					</html>,
 				),

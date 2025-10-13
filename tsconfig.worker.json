@@ -10,5 +10,6 @@
 		"worker",
 		"./types/reset.d.ts",
 		"./types/worker-configuration.d.ts"
-	]
+	],
+	"exclude": ["worker/widgets"]
 }
