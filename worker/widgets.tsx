@@ -2,6 +2,7 @@ import { renderToString } from '@remix-run/dom/server'
 import { type ZodRawShape, type z } from 'zod'
 import { BUILD_TIMESTAMP } from './build-timestamp.ts'
 import { type MathMCP } from './index.tsx'
+import { Calculator } from './widgets/calculator/index.tsx'
 import { createUIResource } from '@mcp-ui/server'
 
 const version = BUILD_TIMESTAMP
