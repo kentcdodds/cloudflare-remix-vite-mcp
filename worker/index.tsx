@@ -75,7 +75,7 @@ export default {
 								<meta charSet="utf-8" />
 								<meta name="color-scheme" content="light dark" />
 								<script
-									src={getResourceUrl('/widgets/entry.js')}
+									src={getResourceUrl('/widgets/calculator.js')}
 									type="module"
 								/>
 							</head>

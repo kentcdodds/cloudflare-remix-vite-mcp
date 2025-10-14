@@ -1,9 +1,8 @@
+import { createUIResource, type CreateUIResourceOptions } from '@mcp-ui/server'
 import { renderToString } from '@remix-run/dom/server'
-import { type ZodRawShape, type z } from 'zod'
+import { type ZodRawShape, z } from 'zod'
 import { BUILD_TIMESTAMP } from './build-timestamp.ts'
 import { type MathMCP } from './index.tsx'
-import { Calculator } from './widgets/calculator/index.tsx'
-import { createUIResource } from '@mcp-ui/server'
 
 const version = BUILD_TIMESTAMP
 
@@ -57,7 +56,7 @@ export async function registerWidgets(agent: MathMCP) {
 							<meta charSet="utf-8" />
 							<meta name="color-scheme" content="light dark" />
 							<script
-								src={getResourceUrl('/widgets/entry.js')}
+								src={getResourceUrl('/widgets/calculator.js')}
 								type="module"
 							></script>
 						</head>
@@ -66,10 +65,42 @@ export async function registerWidgets(agent: MathMCP) {
 						</body>
 					</html>,
 				),
-			// TODO: have input schema for initial state
-			inputSchema: {},
-			outputSchema: {},
-			getStructuredContent: async () => ({}),
+			inputSchema: {
+				display: z
+					.string()
+					.optional()
+					.describe('The initial current display value on the calculator'),
+				previousValue: z
+					.number()
+					.optional()
+					.describe(
+						'The initial previous value on the calculator. For example, if the user says "I want to add 5 to a number" set this to 5',
+					),
+				operation: z
+					.enum(['+', '-', '*', '/'])
+					.optional()
+					.describe(
+						'The initial operation on the calculator. For example, if the user says "I want to add 5 to a number" set this to "+"',
+					),
+				waitingForNewValue: z
+					.boolean()
+					.optional()
+					.describe(
+						'Whether the calculator is waiting for a new value. For example, if the user says "I want to add 5 to a number" set this to true. If they say "subtract 3 from 4" set this to false.',
+					),
+				errorState: z
+					.boolean()
+					.optional()
+					.describe('Whether the calculator is in an error state'),
+			},
+			outputSchema: {
+				display: z.string().optional(),
+				previousValue: z.number().optional(),
+				operation: z.enum(['+', '-', '*', '/']).optional(),
+				waitingForNewValue: z.boolean().optional(),
+				errorState: z.boolean().optional(),
+			},
+			getStructuredContent: async (args) => args,
 		}),
 	]
 
@@ -77,15 +108,19 @@ export async function registerWidgets(agent: MathMCP) {
 		const name = `${widget.name}-${version}`
 		const uri = `ui://widget/${name}.html` as `ui://${string}`
 
+		const resourceInfo: CreateUIResourceOptions = {
+			uri,
+			encoding: 'text',
+			content: {
+				type: 'rawHtml',
+				htmlString: await widget.getHtml(),
+			},
+		}
+
 		agent.server.registerResource(name, uri, {}, async () => ({
 			contents: [
 				createUIResource({
-					uri,
-					encoding: 'text',
-					content: {
-						type: 'rawHtml',
-						htmlString: await widget.getHtml(),
-					},
+					...resourceInfo,
 					metadata: {
 						'openai/widgetDescription': widget.description,
 						'openai/widgetCSP': {
@@ -126,21 +161,21 @@ export async function registerWidgets(agent: MathMCP) {
 				outputSchema: widget.outputSchema,
 			},
 			async (args) => {
+				const structuredContent = widget.getStructuredContent
+					? // @ts-expect-error - TODO: fix this
+						await widget.getStructuredContent(args)
+					: {}
 				return {
 					content: [
 						{ type: 'text', text: widget.resultMessage },
 						createUIResource({
-							uri,
-							encoding: 'text',
-							content: {
-								type: 'rawHtml',
-								htmlString: await widget.getHtml(),
+							...resourceInfo,
+							uiMetadata: {
+								'initial-render-data': structuredContent,
 							},
 						}),
 					],
-					structuredContent: widget.getStructuredContent
-						? await widget.getStructuredContent(args)
-						: {},
+					structuredContent,
 				}
 			},
 		)
