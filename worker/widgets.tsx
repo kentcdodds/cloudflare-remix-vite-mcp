@@ -3,6 +3,7 @@ import { type ZodRawShape, type z } from 'zod'
 import { BUILD_TIMESTAMP } from './build-timestamp.ts'
 import { type MathMCP } from './index.tsx'
 import { Calculator } from './widgets/calculator/index.tsx'
+import { createUIResource } from '@mcp-ui/server'
 
 const version = BUILD_TIMESTAMP
 
@@ -43,6 +44,7 @@ export async function registerWidgets(agent: MathMCP) {
 		createWidget({
 			name: 'calculator',
 			title: 'Calculator',
+			description: 'A simple calculator',
 			invokingMessage: `Getting your calculator ready`,
 			invokedMessage: `Here's your calculator`,
 			resultMessage: 'The calculator has been rendered',
@@ -73,15 +75,18 @@ export async function registerWidgets(agent: MathMCP) {
 
 	for (const widget of widgets) {
 		const name = `${widget.name}-${version}`
-		const uri = `ui://widget/${name}.html`
+		const uri = `ui://widget/${name}.html` as `ui://${string}`
 
 		agent.server.registerResource(name, uri, {}, async () => ({
 			contents: [
-				{
+				createUIResource({
 					uri,
-					mimeType: 'text/html+skybridge',
-					text: await widget.getHtml(),
-					_meta: {
+					encoding: 'text',
+					content: {
+						type: 'rawHtml',
+						htmlString: await widget.getHtml(),
+					},
+					metadata: {
 						'openai/widgetDescription': widget.description,
 						'openai/widgetCSP': {
 							connect_domains: [],
@@ -91,7 +96,12 @@ export async function registerWidgets(agent: MathMCP) {
 							? { 'openai/widgetPrefersBorder': true }
 							: {}),
 					},
-				},
+					adapters: {
+						appsSdk: {
+							enabled: true,
+						},
+					},
+				}).resource,
 			],
 		}))
 
@@ -117,7 +127,17 @@ export async function registerWidgets(agent: MathMCP) {
 			},
 			async (args) => {
 				return {
-					content: [{ type: 'text', text: widget.resultMessage }],
+					content: [
+						{ type: 'text', text: widget.resultMessage },
+						createUIResource({
+							uri,
+							encoding: 'text',
+							content: {
+								type: 'rawHtml',
+								htmlString: await widget.getHtml(),
+							},
+						}),
+					],
 					structuredContent: widget.getStructuredContent
 						? await widget.getStructuredContent(args)
 						: {},
