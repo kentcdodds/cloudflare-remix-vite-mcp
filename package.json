@@ -20,7 +20,7 @@
     "generate-types": "wrangler types ./types/worker-configuration.d.ts",
     "pretypecheck": "npm run generate-types",
     "typecheck": "tsc --noEmit",
-    "inspect": "mcp-inspector",
+    "inspect": "inspector",
     "validate": "concurrently --kill-others-on-fail -n format,lint,build,typecheck -c green,yellow,blue,magenta \"npm run format:check\" \"npm run lint:fix\" \"npm run build\" \"npm run typecheck\""
   },
   "devDependencies": {
@@ -28,6 +28,7 @@
     "@cloudflare/workers-types": "^4.20251011.0",
     "@epic-web/config": "^1.21.3",
     "@eslint/js": "^9.37.0",
+    "@mcpjam/inspector": "^1.0.4",
     "@modelcontextprotocol/inspector": "^0.17.0",
     "@types/node": "^24.7.2",
     "concurrently": "^9.2.1",
