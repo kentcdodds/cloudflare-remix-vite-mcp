@@ -5,6 +5,15 @@ widgets that run on Cloudflare Workers and can be embedded in AI chat interfaces
 like ChatGPT. It showcases the power of combining MCP with modern web
 technologies to create rich, stateful experiences within AI conversations.
 
+## Demo Video
+
+See the calculator widget in action with ChatGPT, including the hidden TRON
+easter egg:
+
+https://github.com/user-attachments/assets/5df110d8-f40b-4c6a-8820-c2dbf3ff79c8
+
+[Watch the demo on X/Twitter](https://x.com/kentcdodds/status/1978219213904044051)
+
 ## How the Demo Works
 
 ### Architecture Overview
