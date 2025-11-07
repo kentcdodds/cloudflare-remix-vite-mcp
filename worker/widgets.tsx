@@ -159,6 +159,7 @@ export async function registerWidgets(agent: MathMCP) {
 				},
 				inputSchema: widget.inputSchema,
 				outputSchema: widget.outputSchema,
+				annotations: { readOnlyHint: true, openWorldHint: false },
 			},
 			async (args) => {
 				const structuredContent = widget.getStructuredContent
