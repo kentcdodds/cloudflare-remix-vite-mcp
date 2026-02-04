@@ -1,10 +1,10 @@
 import { invariant } from '@epic-web/invariant'
-import { connect, createRoot, type Remix } from '@remix-run/dom'
+import { createRoot, type Remix } from '@remix-run/dom'
 import { events, type EventDescriptor } from '@remix-run/events'
 import { createKeyInteraction } from '@remix-run/events/key'
 import { press } from '@remix-run/events/press'
 import { z } from 'zod'
-import { initMcpUi, sendMcpMessage, waitForRenderData } from '../utils.ts'
+import { sendPromptMessage, waitForToolInput } from '../utils.ts'
 import { Calculator as CalcEngine, type CalculatorState } from './calculator'
 import { MCP_PROMPT } from './mcp-prompt.ts'
 
@@ -20,7 +20,7 @@ export function Calculator(
 			this.update()
 			// if the result is 1982, send a message to the user that the result is 1982
 			if (calc.getDisplay() === '1982') {
-				void sendMcpMessage('prompt', { prompt: MCP_PROMPT })
+				void sendPromptMessage(MCP_PROMPT)
 			}
 		}),
 	])
@@ -406,32 +406,32 @@ function CalcButton({
 	)
 }
 
-const renderDataSchema = z
+const toolInputSchema = z
 	.object({
-		toolInput: z
-			.object({
-				display: z.string().optional(),
-				previousValue: z.number().optional(),
-				operation: z.enum(['+', '-', '*', '/']).optional(),
-				waitingForNewValue: z.boolean().optional(),
-				errorState: z.boolean().optional(),
-			})
-			.passthrough()
-			.nullable(),
-		toolOutput: z.object({}).passthrough().nullable(),
+		display: z.string().optional(),
+		previousValue: z.number().optional(),
+		operation: z.enum(['+', '-', '*', '/']).optional(),
+		waitingForNewValue: z.boolean().optional(),
+		errorState: z.boolean().optional(),
 	})
 	.passthrough()
 
 function App(this: Remix.Handle) {
-	let renderData: z.infer<typeof renderDataSchema> | null = null
-	void waitForRenderData(renderDataSchema).then((data) => {
-		console.log('renderData', data)
-		renderData = data
-		if (state === 'pending-data') {
-			state = 'resolved'
-			this.update()
-		}
-	})
+	let toolInput: z.infer<typeof toolInputSchema> | null = null
+	void waitForToolInput(toolInputSchema)
+		.then((data) => {
+			toolInput = data
+			if (data) {
+				console.log('toolInput', data)
+			}
+			if (state === 'pending-data') {
+				state = 'resolved'
+				this.update()
+			}
+		})
+		.catch((error) => {
+			console.warn('[MCP Apps] Failed to parse tool input', error)
+		})
 	let state: 'pending-messages' | 'pending-data' | 'resolved' =
 		'pending-messages'
 	let step = 0
@@ -446,7 +446,7 @@ function App(this: Remix.Handle) {
 		if (step >= steps.length) {
 			timeout = setTimeout(() => {
 				const forceResolve = true
-				if (renderData || forceResolve) {
+				if (toolInput || forceResolve) {
 					state = 'resolved'
 					this.update()
 				} else {
@@ -468,9 +468,7 @@ function App(this: Remix.Handle) {
 
 	return () =>
 		state === 'resolved' ? (
-			<Calculator
-				initialState={renderData ? { ...renderData.toolInput } : undefined}
-			/>
+			<Calculator initialState={toolInput ?? undefined} />
 		) : (
 			<div
 				css={{
@@ -522,7 +520,6 @@ createRoot(rootEl).render(
 			justifyContent: 'center',
 			alignItems: 'center',
 		}}
-		on={connect(() => initMcpUi())}
 	>
 		<App />
 	</div>,
