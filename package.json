@@ -44,6 +44,7 @@
   "dependencies": {
     "@epic-web/invariant": "^1.0.0",
     "@mcp-ui/server": "5.12.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.20.0",
     "@remix-run/dom": "^0.0.0-experimental-remix-jam.6",
     "@remix-run/events": "^0.0.0-experimental-remix-jam.5",

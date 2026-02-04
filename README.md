@@ -103,33 +103,48 @@ The server registers two types of capabilities:
 
 #### Widget Registration
 
-Widgets are registered as both MCP resources (for the HTML/JS bundle) and MCP
+Widgets are registered as MCP Apps resources (for the HTML/JS bundle) and MCP
 tools (for invocation). The registration includes:
 
 - **Input Schema** - Zod schemas defining what parameters the widget accepts
 - **Output Schema** - Zod schemas defining what the widget can return
 - **HTML Bundle** - The rendered HTML with script references
-- **OpenAI Metadata** - Special metadata that tells ChatGPT how to display the
-  widget
+- **MCP Apps Metadata** - Standard `_meta.ui.resourceUri` and resource CSP
+  settings for any MCP Apps-compatible host
 
 ```typescript
-agent.server.registerResource(name, uri, {}, async () => ({
+registerAppResource(agent.server, name, uri, {
+	description: widget.description,
+	_meta: {
+		ui: {
+			csp: {
+				connectDomains: [],
+				resourceDomains: [baseUrl],
+			},
+		},
+	},
+}, async () => ({
 	contents: [
 		createUIResource({
+			uri,
+			encoding: 'text',
 			content: {
 				type: 'rawHtml',
 				htmlString: await widget.getHtml(),
 			},
-			metadata: {
-				'openai/widgetDescription': widget.description,
-				'openai/widgetCSP': {
-					connect_domains: [],
-					resource_domains: [baseUrl],
-				},
-			},
 		}).resource,
 	],
 }))
+
+registerAppTool(agent.server, name, {
+	title: widget.title,
+	description: widget.description,
+	inputSchema: widget.inputSchema,
+	outputSchema: widget.outputSchema,
+	_meta: {
+		ui: { resourceUri: uri },
+	},
+}, handler)
 ```
 
 #### Separate Build Process
@@ -149,22 +164,27 @@ The project uses two separate build processes:
 
 #### Communication Protocol
 
-Widgets communicate with their parent frame (the AI chat interface) using
-`postMessage`:
+Widgets communicate with their parent frame (the AI chat interface) using the
+MCP Apps JSON-RPC bridge (`ui/*` methods) via the `App` class:
 
-- **Initialization** - Widget sends `ui-lifecycle-iframe-ready` when mounted
-- **Render Data** - Widget receives `ui-lifecycle-iframe-render-data` with
-  initial state
-- **Tool Calls** - Widget can invoke other MCP tools by sending `tool` messages
-- **Prompts** - Widget can send new prompts to the AI using `prompt` messages
-- **Links** - Widget can open links using `link` messages
+- **Initialization** - Widget calls `ui/initialize` with `App.connect()`
+- **Tool Input** - Host sends `ui/notifications/tool-input`
+- **Tool Calls** - Widget calls `tools/call` via `app.callServerTool()`
+- **Messages** - Widget sends `ui/message` via `app.sendMessage()`
+- **Links** - Widget requests `ui/open-link` via `app.openLink()`
 
 ```typescript
-// Widget sends a prompt to the AI
-sendMcpMessage('prompt', { prompt: MCP_PROMPT })
+const app = new App({ name: 'calculator-widget', version: '1.0.0' })
+app.ontoolinput = ({ arguments: toolInput }) => {
+	console.log('toolInput', toolInput)
+}
+await app.connect()
 
-// Widget waits for initial render data
-const renderData = await waitForRenderData(renderDataSchema)
+// Widget sends a prompt to the AI
+await app.sendMessage({
+	role: 'user',
+	content: [{ type: 'text', text: MCP_PROMPT }],
+})
 ```
 
 ### The User Experience
@@ -173,11 +193,9 @@ Here's what happens when a user interacts with this MCP server in ChatGPT:
 
 1. User asks: "Can I get a calculator?"
 2. ChatGPT invokes the `calculator` tool via MCP
-3. The server responds with:
-   - Text content: "The calculator has been rendered"
-   - UI resource: The calculator HTML with initial state
-   - Structured content: The current calculator state
-4. ChatGPT renders the calculator widget in an iframe
+3. The tool metadata links to the UI resource via `_meta.ui.resourceUri`
+4. ChatGPT fetches the `ui://` resource, renders the widget in an iframe, and
+   sends tool input via `ui/notifications/tool-input`
 5. The widget loads, shows a Tron-style initialization sequence, then displays
    the calculator
 6. User interacts with the calculator (clicking buttons or using keyboard)

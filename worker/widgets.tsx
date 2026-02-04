@@ -1,4 +1,5 @@
 import { createUIResource, type CreateUIResourceOptions } from '@mcp-ui/server'
+import { registerAppResource, registerAppTool } from '@modelcontextprotocol/ext-apps/server'
 import { renderToString } from '@remix-run/dom/server'
 import { type ZodRawShape, z } from 'zod'
 import { BUILD_TIMESTAMP } from './build-timestamp.ts'
@@ -21,11 +22,7 @@ type Widget<Input extends ZodRawShape, Output extends ZodRawShape> = {
 	title: string
 	resultMessage: string
 	description?: string
-	invokingMessage?: string
-	invokedMessage?: string
-	widgetAccessible?: boolean
 	widgetPrefersBorder?: boolean
-	resultCanProduceWidget?: boolean
 	getHtml: () => Promise<string>
 } & WidgetOutput<Input, Output>
 
@@ -44,11 +41,7 @@ export async function registerWidgets(agent: MathMCP) {
 			name: 'calculator',
 			title: 'Calculator',
 			description: 'A simple calculator',
-			invokingMessage: `Getting your calculator ready`,
-			invokedMessage: `Here's your calculator`,
 			resultMessage: 'The calculator has been rendered',
-			widgetAccessible: true,
-			resultCanProduceWidget: true,
 			getHtml: () =>
 				renderToString(
 					<html>
@@ -107,6 +100,13 @@ export async function registerWidgets(agent: MathMCP) {
 	for (const widget of widgets) {
 		const name = `${widget.name}-${version}`
 		const uri = `ui://widget/${name}.html` as `ui://${string}`
+		const resourceUiMeta = {
+			csp: {
+				connectDomains: [],
+				resourceDomains: [baseUrl],
+			},
+			...(widget.widgetPrefersBorder ? { prefersBorder: true } : {}),
+		}
 
 		const resourceInfo: CreateUIResourceOptions = {
 			uri,
@@ -115,47 +115,36 @@ export async function registerWidgets(agent: MathMCP) {
 				type: 'rawHtml',
 				htmlString: await widget.getHtml(),
 			},
+			metadata: {
+				ui: resourceUiMeta,
+			},
 		}
 
-		agent.server.registerResource(name, uri, {}, async () => ({
-			contents: [
-				createUIResource({
-					...resourceInfo,
-					metadata: {
-						'openai/widgetDescription': widget.description,
-						'openai/widgetCSP': {
-							connect_domains: [],
-							resource_domains: [baseUrl],
-						},
-						...(widget.widgetPrefersBorder
-							? { 'openai/widgetPrefersBorder': true }
-							: {}),
-					},
-					adapters: {
-						appsSdk: {
-							enabled: true,
-						},
-					},
-				}).resource,
-			],
-		}))
+		registerAppResource(
+			agent.server,
+			name,
+			uri,
+			{
+				description: widget.description,
+				_meta: {
+					ui: resourceUiMeta,
+				},
+			},
+			async () => ({
+				contents: [createUIResource(resourceInfo).resource],
+			}),
+		)
 
-		agent.server.registerTool(
+		registerAppTool(
+			agent.server,
 			name,
 			{
 				title: widget.title,
 				description: widget.description,
 				_meta: {
-					'openai/widgetDomain': baseUrl,
-					'openai/outputTemplate': uri,
-					'openai/toolInvocation/invoking': widget.invokingMessage,
-					'openai/toolInvocation/invoked': widget.invokedMessage,
-					...(widget.resultCanProduceWidget
-						? { 'openai/resultCanProduceWidget': true }
-						: {}),
-					...(widget.widgetAccessible
-						? { 'openai/widgetAccessible': true }
-						: {}),
+					ui: {
+						resourceUri: uri,
+					},
 				},
 				inputSchema: widget.inputSchema,
 				outputSchema: widget.outputSchema,
@@ -169,12 +158,6 @@ export async function registerWidgets(agent: MathMCP) {
 				return {
 					content: [
 						{ type: 'text', text: widget.resultMessage },
-						createUIResource({
-							...resourceInfo,
-							uiMetadata: {
-								'initial-render-data': structuredContent,
-							},
-						}),
 					],
 					structuredContent,
 				}

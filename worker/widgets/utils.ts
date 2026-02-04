@@ -1,112 +1,99 @@
+import { App } from '@modelcontextprotocol/ext-apps'
 import { type z } from 'zod'
 
-export function initMcpUi() {
-	window.parent.postMessage({ type: 'ui-lifecycle-iframe-ready' }, '*')
+type AppInfo = {
+	name: string
+	version: string
 }
 
-export function updateMcpUiSize(height: number, width: number) {
-	window.parent.postMessage(
-		{ type: 'ui-size-change', payload: { height, width } },
-		'*',
-	)
+type ConnectOptions = {
+	appInfo?: AppInfo
+	onToolInput?: (params: { arguments?: Record<string, unknown> }) => void
 }
 
-type MessageOptions = { schema?: z.ZodSchema }
-
-type McpMessageReturnType<Options> = Promise<
-	Options extends { schema: z.ZodSchema } ? z.infer<Options['schema']> : unknown
->
-
-type McpMessageTypes = {
-	tool: { toolName: string; params: Record<string, unknown> }
-	prompt: { prompt: string }
-	link: { url: string }
+const DEFAULT_APP_INFO: AppInfo = {
+	name: 'calculator-widget',
+	version: '1.0.0',
 }
 
-type McpMessageType = keyof McpMessageTypes
+let appInstance: App | null = null
+let appPromise: Promise<App | null> | null = null
 
-function sendMcpMessage<Options extends MessageOptions>(
-	type: 'tool',
-	payload: McpMessageTypes['tool'],
-	options?: Options,
-): McpMessageReturnType<Options>
+function hasHost() {
+	return typeof window !== 'undefined' && window.parent && window.parent !== window
+}
 
-function sendMcpMessage<Options extends MessageOptions>(
-	type: 'prompt',
-	payload: McpMessageTypes['prompt'],
-	options?: Options,
-): McpMessageReturnType<Options>
+export function connectMcpApp(options: ConnectOptions = {}) {
+	if (!hasHost()) {
+		return Promise.resolve(null)
+	}
 
-function sendMcpMessage<Options extends MessageOptions>(
-	type: 'link',
-	payload: McpMessageTypes['link'],
-	options?: Options,
-): McpMessageReturnType<Options>
+	if (!appInstance) {
+		appInstance = new App(options.appInfo ?? DEFAULT_APP_INFO)
+	}
 
-function sendMcpMessage(
-	type: McpMessageType,
-	payload: McpMessageTypes[McpMessageType],
-	options: MessageOptions = {},
-): McpMessageReturnType<typeof options> {
-	const { schema } = options
-	const messageId = crypto.randomUUID()
+	if (options.onToolInput) {
+		appInstance.ontoolinput = options.onToolInput
+	}
 
-	return new Promise((resolve, reject) => {
-		if (!window.parent || window.parent === window) {
-			console.log(`[MCP] No parent frame available. Would have sent message:`, {
-				type,
-				messageId,
-				payload,
+	if (!appPromise) {
+		appPromise = appInstance
+			.connect()
+			.then(() => appInstance)
+			.catch((error) => {
+				console.warn('[MCP Apps] Failed to connect to host', error)
+				return null
 			})
-			reject(new Error('No parent frame available'))
-			return
-		}
+	}
 
-		window.parent.postMessage({ type, messageId, payload }, '*')
+	return appPromise
+}
 
-		function handleMessage(event: MessageEvent) {
-			if (event.data.type !== 'ui-message-response') return
-			if (event.data.messageId !== messageId) return
-			window.removeEventListener('message', handleMessage)
+export function waitForToolInput<RenderData>(
+	schema?: z.ZodSchema<RenderData>,
+): Promise<RenderData | null> {
+	if (!hasHost()) {
+		return Promise.resolve(null)
+	}
 
-			const { response, error } = event.data.payload
+	return new Promise((resolve, reject) => {
+		let resolved = false
+		void connectMcpApp({
+			onToolInput: (params) => {
+				if (resolved) return
+				resolved = true
+				const toolInput = (params?.arguments ?? {}) as RenderData
+				if (!schema) {
+					resolve(toolInput)
+					return
+				}
 
-			if (error) return reject(error)
-			if (!schema) return resolve(response)
+				const parseResult = schema.safeParse(toolInput)
+				if (!parseResult.success) {
+					reject(parseResult.error)
+					return
+				}
 
-			const parseResult = schema.safeParse(response)
-			if (!parseResult.success) return reject(parseResult.error)
-
-			return resolve(parseResult.data)
-		}
-
-		window.addEventListener('message', handleMessage)
+				resolve(parseResult.data)
+			},
+		})
 	})
 }
 
-export { sendMcpMessage }
+export async function sendPromptMessage(prompt: string) {
+	const app = await connectMcpApp()
+	if (!app) {
+		console.warn('[MCP Apps] Host not available; prompt not sent.')
+		return null
+	}
 
-export function waitForRenderData<RenderData>(
-	schema?: z.ZodSchema<RenderData>,
-): Promise<RenderData> {
-	return new Promise((resolve, reject) => {
-		window.parent.postMessage({ type: 'ui-lifecycle-iframe-ready' }, '*')
-
-		function handleMessage(event: MessageEvent) {
-			if (event.data?.type !== 'ui-lifecycle-iframe-render-data') return
-			window.removeEventListener('message', handleMessage)
-
-			const { renderData, error } = event.data.payload
-
-			if (error) return reject(error)
-			if (!schema) return resolve(renderData)
-
-			const parseResult = schema.safeParse(renderData)
-			if (!parseResult.success) return reject(parseResult.error)
-
-			return resolve(parseResult.data)
-		}
-
-		window.addEventListener('message', handleMessage)
-	})
+	try {
+		return await app.sendMessage({
+			role: 'user',
+			content: [{ type: 'text', text: prompt }],
+		})
+	} catch (error) {
+		console.warn('[MCP Apps] Failed to send message', error)
+		return null
+	}
 }
