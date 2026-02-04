@@ -10,7 +10,6 @@
     "deploy": "npm run build && wrangler deploy",
     "build": "concurrently -n widgets,worker -c cyan,magenta \"npm run build:widgets\" \"npm run build:worker\"",
     "build:widgets": "vite build --config vite.config.widgets.ts",
-    "prebuild:worker": "node -e \"const fs = require('fs'); fs.mkdirSync('dist/public', { recursive: true }); fs.writeFileSync('worker/build-timestamp.ts', 'export const BUILD_TIMESTAMP = \\'' + Date.now() + '\\'')\"",
     "build:worker": "wrangler build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

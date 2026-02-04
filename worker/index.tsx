@@ -2,7 +2,6 @@ import { invariant } from '@epic-web/invariant'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { renderToString } from '@remix-run/dom/server'
 import { McpAgent } from 'agents/mcp'
-import { BUILD_TIMESTAMP } from './build-timestamp.ts'
 import { registerTools } from './tools.ts'
 import { withCors } from './utils.ts'
 import { registerWidgets } from './widgets.tsx'
@@ -69,9 +68,6 @@ export default {
 			if (url.pathname.startsWith('/__dev/widgets')) {
 				const getResourceUrl = (resourcePath: string) => {
 					const resourceUrl = new URL(resourcePath, url.origin)
-					if (resourcePath.startsWith('/widgets/')) {
-						resourceUrl.searchParams.set('v', BUILD_TIMESTAMP)
-					}
 					return resourceUrl.toString()
 				}
 				return new Response(
