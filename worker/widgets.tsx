@@ -5,7 +5,40 @@ import { type ZodRawShape, z } from 'zod'
 import { BUILD_TIMESTAMP } from './build-timestamp.ts'
 import { type MathMCP } from './index.tsx'
 
-const version = BUILD_TIMESTAMP
+const assetVersion = BUILD_TIMESTAMP
+
+type WidgetRegistryEntry = {
+	toolName: string
+	resourceName: string
+	resourceUri: `ui://${string}`
+}
+
+function validateWidgetRegistry(entries: WidgetRegistryEntry[]) {
+	const toolNames = new Set<string>()
+	const resourceUris = new Set<string>()
+	const errors: string[] = []
+
+	for (const entry of entries) {
+		if (toolNames.has(entry.toolName)) {
+			errors.push(`Duplicate tool name: ${entry.toolName}`)
+		}
+		if (resourceUris.has(entry.resourceUri)) {
+			errors.push(`Duplicate resource uri: ${entry.resourceUri}`)
+		}
+		toolNames.add(entry.toolName)
+		resourceUris.add(entry.resourceUri)
+	}
+
+	if (errors.length) {
+		console.error('[MCP Apps] Widget registry validation failed', {
+			errors,
+			entries,
+		})
+		throw new Error(
+			'Widget registry invalid; refusing to advertise app tools/resources.',
+		)
+	}
+}
 
 type WidgetOutput<Input extends ZodRawShape, Output extends ZodRawShape> = {
 	inputSchema: Input
@@ -34,8 +67,11 @@ function createWidget<Input extends ZodRawShape, Output extends ZodRawShape>(
 
 export async function registerWidgets(agent: MathMCP) {
 	const baseUrl = agent.requireDomain()
-	const getResourceUrl = (resourcePath: string) =>
-		new URL(resourcePath, baseUrl).toString()
+	const getWidgetAssetUrl = (resourcePath: string) => {
+		const url = new URL(resourcePath, baseUrl)
+		url.searchParams.set('v', assetVersion)
+		return url.toString()
+	}
 	const widgets = [
 		createWidget({
 			name: 'calculator',
@@ -49,7 +85,7 @@ export async function registerWidgets(agent: MathMCP) {
 							<meta charSet="utf-8" />
 							<meta name="color-scheme" content="light dark" />
 							<script
-								src={getResourceUrl('/widgets/calculator.js')}
+								src={getWidgetAssetUrl('/widgets/calculator.js')}
 								type="module"
 							></script>
 						</head>
@@ -97,9 +133,27 @@ export async function registerWidgets(agent: MathMCP) {
 		}),
 	]
 
+	const registryEntries = widgets.map((widget) => ({
+		toolName: widget.name,
+		resourceName: widget.name,
+		resourceUri: `ui://widget/${widget.name}.html` as `ui://${string}`,
+	}))
+
+	validateWidgetRegistry(registryEntries)
+	console.info('[MCP Apps] Widget registry ready', {
+		assetVersion,
+		tools: registryEntries.map((entry) => entry.toolName),
+		resources: registryEntries.map((entry) => entry.resourceUri),
+	})
+
 	for (const widget of widgets) {
-		const name = `${widget.name}-${version}`
-		const uri = `ui://widget/${name}.html` as `ui://${string}`
+		const registryEntry = registryEntries.find(
+			(entry) => entry.toolName === widget.name,
+		)
+		if (!registryEntry) {
+			throw new Error(`Missing widget registry entry for ${widget.name}`)
+		}
+		const { toolName, resourceName, resourceUri } = registryEntry
 		const resourceUiMeta = {
 			csp: {
 				connectDomains: [],
@@ -109,7 +163,7 @@ export async function registerWidgets(agent: MathMCP) {
 		}
 
 		const resourceInfo: CreateUIResourceOptions = {
-			uri,
+			uri: resourceUri,
 			encoding: 'text',
 			content: {
 				type: 'rawHtml',
@@ -122,8 +176,8 @@ export async function registerWidgets(agent: MathMCP) {
 
 		registerAppResource(
 			agent.server,
-			name,
-			uri,
+			resourceName,
+			resourceUri,
 			{
 				description: widget.description,
 				_meta: {
@@ -137,13 +191,13 @@ export async function registerWidgets(agent: MathMCP) {
 
 		registerAppTool(
 			agent.server,
-			name,
+			toolName,
 			{
 				title: widget.title,
 				description: widget.description,
 				_meta: {
 					ui: {
-						resourceUri: uri,
+						resourceUri: resourceUri,
 					},
 				},
 				inputSchema: widget.inputSchema,
