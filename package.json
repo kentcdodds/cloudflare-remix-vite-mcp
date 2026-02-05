@@ -8,7 +8,7 @@
     "dev:widgets": "vite build --watch --config vite.config.widgets.ts",
     "dev:worker": "wrangler dev --local",
     "deploy": "npm run build && wrangler deploy",
-    "build": "concurrently -n widgets,worker -c cyan,magenta \"npm run build:widgets\" \"npm run build:worker\"",
+    "build": "npm run build:widgets && npm run build:worker",
     "build:widgets": "vite build --config vite.config.widgets.ts",
     "build:worker": "wrangler build",
     "lint": "eslint .",
