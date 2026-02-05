@@ -2,10 +2,7 @@ import { createUIResource, type CreateUIResourceOptions } from '@mcp-ui/server'
 import { registerAppResource, registerAppTool } from '@modelcontextprotocol/ext-apps/server'
 import { renderToString } from '@remix-run/dom/server'
 import { type ZodRawShape, z } from 'zod'
-import { BUILD_TIMESTAMP } from './build-timestamp.ts'
 import { type MathMCP } from './index.tsx'
-
-const assetVersion = BUILD_TIMESTAMP
 
 type WidgetRegistryEntry = {
 	toolName: string
@@ -69,7 +66,6 @@ export async function registerWidgets(agent: MathMCP) {
 	const baseUrl = agent.requireDomain()
 	const getWidgetAssetUrl = (resourcePath: string) => {
 		const url = new URL(resourcePath, baseUrl)
-		url.searchParams.set('v', assetVersion)
 		return url.toString()
 	}
 	const widgets = [
@@ -141,7 +137,6 @@ export async function registerWidgets(agent: MathMCP) {
 
 	validateWidgetRegistry(registryEntries)
 	console.info('[MCP Apps] Widget registry ready', {
-		assetVersion,
 		tools: registryEntries.map((entry) => entry.toolName),
 		resources: registryEntries.map((entry) => entry.resourceUri),
 	})
